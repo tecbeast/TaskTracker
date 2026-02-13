@@ -11,16 +11,36 @@ public class TimeTracker extends JFrame {
     private static final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE dd.MM.yyyy");
 
-    private final JLabel timeLabel;
-    private final JLabel dateLabel;
+    private JLabel timeLabel;
+    private JLabel dateLabel;
+    private DefaultListModel<String> listModel;
+    private String currentProject;
 
     public TimeTracker() {
 
         super("TimeTracker");
 
-        setSize(400, 200);
+        setSize(400, 350);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.add(createTimerPanel());
+        panel.add(createProjectPanel());
+        panel.add(createJournalPanel());
+
+        add(panel);
+
+        updateTimeAndDate();
+
+        // use a timer to update the time and date labels every second
+        Timer timer = new Timer(1000, e -> updateTimeAndDate());
+        timer.start();
+
+    }
+
+    private JPanel createTimerPanel() {
 
         // create a panel to hold the time and date labels
         JPanel panel = new JPanel();
@@ -44,13 +64,48 @@ public class TimeTracker extends JFrame {
         dateLabel.setForeground(Color.WHITE);
         panel.add(dateLabel, BorderLayout.SOUTH);
 
-        // add the panel to the frame
-        add(panel);
-        updateTimeAndDate();
+        return panel;
 
-        // use a timer to update the time and date labels every second
-        Timer timer = new Timer(1000, e -> updateTimeAndDate());
-        timer.start();
+    }
+
+    private JPanel createProjectPanel() {
+
+        JPanel panel = new JPanel();
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+
+        JButton startButton = new JButton("Start");
+        startButton.addActionListener(e -> listModel.addElement(currentProject));
+        panel.add(startButton);
+
+        panel.add(Box.createHorizontalStrut(5));
+
+        String[] projects = { "Project 1", "Project 2", "Project 3", "Project 4"};
+        JComboBox<String> projectComboBox = new JComboBox<>(projects);
+        projectComboBox.addActionListener(e -> {
+            if (projectComboBox.getSelectedIndex() >= 0) {
+                currentProject = projects[projectComboBox.getSelectedIndex()];
+            }
+        });
+        panel.add(projectComboBox);
+
+        return panel;
+
+    }
+
+    private JPanel createJournalPanel() {
+
+        JPanel panel = new JPanel();
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+        panel.setLayout(new BorderLayout());
+
+        listModel = new DefaultListModel<>();
+        JList<String> journalList = new JList<>(listModel);
+        JScrollPane scrollPane = new JScrollPane(journalList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
 
     }
 
