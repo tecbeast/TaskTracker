@@ -1,123 +1,88 @@
 package com.balancedbytes.tool.work;
 
 import javax.swing.*;
-import java.awt.*;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
 
-public class TaskTracker extends JFrame {
+public class TaskTracker {
 
-    private static final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("EEE dd.MM.yyyy");
+    private static final String CONFIG_PATH = "/TaskTracker.properties";
 
-    private JLabel timeLabel;
-    private JLabel dateLabel;
-    private DefaultListModel<String> listModel;
-    private String currentProject;
+    private final Properties config;
+    private final Journal journal;
 
     public TaskTracker() {
-
-        super("TimeTracker");
-
-        setSize(400, 350);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setResizable(false);
-
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.add(createTimerPanel());
-        panel.add(createProjectPanel());
-        panel.add(createJournalPanel());
-
-        add(panel);
-
-        updateTimeAndDate();
-
-        // use a timer to update the time and date labels every second
-        Timer timer = new Timer(1000, e -> updateTimeAndDate());
-        timer.start();
-
+        config = new Properties();
+        journal = new Journal();
     }
 
-    private JPanel createTimerPanel() {
-
-        // create a panel to hold the time and date labels
-        JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-        panel.setBackground(Color.BLACK);
-
-        // create a label to display the time
-        timeLabel = new JLabel();
-        timeLabel.setFont(new Font("Arial", Font.PLAIN, 60));
-        timeLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        timeLabel.setVerticalAlignment(SwingConstants.CENTER);
-        timeLabel.setForeground(Color.RED);
-        panel.add(timeLabel, BorderLayout.CENTER);
-
-        // create a label to display the date
-        dateLabel = new JLabel();
-        dateLabel.setFont(new Font("Arial", Font.PLAIN, 20));
-        dateLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        dateLabel.setVerticalAlignment(SwingConstants.CENTER);
-        dateLabel.setForeground(Color.WHITE);
-        panel.add(dateLabel, BorderLayout.SOUTH);
-
-        return panel;
-
-    }
-
-    private JPanel createProjectPanel() {
-
-        JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-
-        JButton startButton = new JButton("Start");
-        startButton.addActionListener(e -> listModel.addElement(currentProject));
-        panel.add(startButton);
-
-        panel.add(Box.createHorizontalStrut(5));
-
-        String[] projects = { "Project 1", "Project 2", "Project 3", "Project 4"};
-        JComboBox<String> projectComboBox = new JComboBox<>(projects);
-        projectComboBox.addActionListener(e -> {
-            if (projectComboBox.getSelectedIndex() >= 0) {
-                currentProject = projects[projectComboBox.getSelectedIndex()];
+    private boolean init() {
+        try (InputStream in = TaskTracker.class.getResourceAsStream(CONFIG_PATH)) {
+            config.load(in);
+        } catch (IOException ioe) {
+            ioe.printStackTrace(System.err);
+            return false;
+        }
+        String journalPath = config.getProperty("journalPath");
+        try (InputStream in = TaskTracker.class.getResourceAsStream(journalPath)) {
+            if (in != null) {
+                journal.readFrom(new InputStreamReader(in));
             }
-        });
-        panel.add(projectComboBox);
-
-        return panel;
-
+        } catch (IOException ioe) {
+            ioe.printStackTrace(System.err);
+            return false;
+        }
+        return true;
     }
 
-    private JPanel createJournalPanel() {
-
-        JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
-        panel.setLayout(new BorderLayout());
-
-        listModel = new DefaultListModel<>();
-        JList<String> journalList = new JList<>(listModel);
-        JScrollPane scrollPane = new JScrollPane(journalList, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-
-        panel.add(scrollPane, BorderLayout.CENTER);
-
-        return panel;
-
+    protected List<String> getTaskList() {
+        List<String> taskList = new ArrayList<>();
+        for (String key : config.stringPropertyNames()) {
+            if (key.startsWith("task.") && (config.getProperty(key) != null)) {
+                String task = config.getProperty(key).trim();
+                if (!task.isEmpty()) {
+                    taskList.add(task);
+                }
+            }
+        }
+        Collections.sort(taskList);
+        return taskList;
     }
 
-    private void updateTimeAndDate() {
-        Date time = Calendar.getInstance().getTime();
-        timeLabel.setText(TIME_FORMAT.format(time));
-        dateLabel.setText(DATE_FORMAT.format(time));
+    /**
+     * Create the GUI and show it. For thread safety, this method should be invoked
+     * from the event-dispatching thread.
+     */
+    private void createAndShowUi() {
+
+        try {
+            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
+        } catch (Exception e) {
+            System.err.println("Can't change Look&Feel: " + e);
+        }
+
+        // make sure we have nice window decorations.
+        JFrame.setDefaultLookAndFeelDecorated(true);
+
+        TaskTrackerUi ui = new TaskTrackerUi(this);
+        ui.setVisible(true);
+
     }
 
     public static void main(String[] args) {
+
         TaskTracker taskTracker = new TaskTracker();
-        taskTracker.setVisible(true);
+        taskTracker.init();
+
+        // schedule a job for the event-dispatching thread:
+        // creating and showing this application's GUI.
+        SwingUtilities.invokeLater(taskTracker::createAndShowUi);
+
     }
 
 }
